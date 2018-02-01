@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html>
+<head lang="en">
+    <meta charset="UTF-8">
+    <title>Google Maps from Google Spreadsheets Demo</title>
+    <link rel="stylesheet" href="map.css">
+    <style>
+    #map {
+    height: 800px;
+    width: 1000px;
+    }
+    </style>
+</head>
+
+<body>
+
+<h3>Google Maps from Google Spreadsheets</h3>
+<p>Loads and parses HPMS samples from a Google sheets document. Each sample's begin point is shown as a marker.</p>
+<p>The marker can be selected to show a pop-up bubble giving (1) HPMS sample number, (2) latitude, (3) longitude, and (4) maps direction link.</p>
+    
+<!--
+// GitHub: https://github.com/softwaresaved/maps-from-google-spreadsheets        -> gives source code
+// CodePen: https://codepen.io/anon/pen/rWybvX                                   -> sort-of-functional coding environment
+// Original Source: https://www.software.ac.uk/generating-google-maps-out-google-spreadsheets
+-->
+
+<script src="map.js"></script>
+
+<div id="map"></div>
+<!-- Replace the value of the key parameter in the call to the Google Maps JavaScript API URL below with your own API key. -->
+<!-- Make sure your API key is authorised to access the Google Maps API - you can enable that through your Google Developer console. -->
+<script async defer
+        src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBVUIcRwwZBy4dSa1uYbdZOkZGThQVhhoM&callback=initializeMap">
+</script>
+
+<script src="https://code.jquery.com/jquery-3.1.1.min.js"></script>
+    
+<script>
+var map;
+var locations = [];
+
+function initializeMap() {
+
+  // Load data from Google spreadsheet that contains latitude and longitude columns using Google Sheets API v4 that returns JSON.
+  // Replace the ID of your Google spreadsheet, your API key, and the data range in the URL:
+  // https://sheets.googleapis.com/v4/spreadsheets/ID_OF_GOOGLE_SPREADSHEET/values/RANGE&key=API_KEY
+  // Also make sure the API key is authorised to access Google Sheets API - enabled through the Google Developer console.
+
+  $.getJSON("https://sheets.googleapis.com/v4/spreadsheets/1miqlfw5xYOTUDM4DUR_bYnFe0tr_MEokjFxllP4gaxo/values/HPMS_Samples!A2:E6?key=AIzaSyA1wUTc8hDiTMxY70Y5u8_iYSKmvyJscpc", 
+        function(data) {
+    	// data.values contains the array of rows from the spreadsheet. Each row is also an array of cell values.
+    	// Modify the code below to suit the structure of the spreadsheet.
+    	$(data.values).each(function() {
+    		var location = {};
+				location.sample_id = this[0];
+				location.begin_lat = parseFloat(this[1]);
+      	        location.begin_lon = parseFloat(this[2]);
+                location.end_lat = parseFloat(this[3]);
+                location.end_lon = parseFloat(this[4]);
+	  		    locations.push(location);
+    	});
+
+      // Center map. Will reconfigure later with (fitbounds method)
+      var mapOptions = {
+        zoom: 10,
+        center: new google.maps.LatLng(32.30292,-90.18407)
+      };
+      var map = new google.maps.Map(document.getElementById('map'), mapOptions);
+      setLocations(map, locations);
+  });
+}
+
+function setLocations(map, location) {
+  var bounds = new google.maps.LatLngBounds();
+  // Create nice, customised pop-up boxes, to appear when the marker is clicked on
+  var infowindow = new google.maps.InfoWindow({
+    content: "Content String"
+  });
+  for (var i = 0; i < locations.length; i++) {
+    var new_marker = createMarker(map, locations[i], infowindow);
+    bounds.extend(new_marker.position);
+  }
+  map.fitBounds(bounds);
+}
+
+function createMarker(map, location, infowindow) {
+  // Modify the code below to suit the structure of the spreadsheet (stored in variable 'location')
+  var position = {
+    lat: parseFloat(location.begin_lat),
+    lng: parseFloat(location.begin_lon)
+  };
+  var marker = new google.maps.Marker({
+    position: position,
+    map: map,
+    title: location.sample_id,
+  });
+  google.maps.event.addListener(marker, 'click', function() {
+    infowindow.setContent('<div>'+
+    ((location.sample_id === undefined) ? "" : ('<p><strong>Sample ID: </strong>' + location.sample_id + '</p>')) +
+    ((location.begin_lat === undefined) ? "" : ('<p><strong>Begin Lat/Lng: </strong>' + location.begin_lat + "," + location.begin_lon + '</p>')) +
+    ((location.begin_lon === undefined) ? "" : ('<p><strong>End Lat/Lng: </strong>' + location.end_lat + "," + location.end_lon + '</p>')) +
+    '</div>');
+    infowindow.open(map, marker);
+  });
+  return marker;
+}
+</script>
+</body>
+</html>
